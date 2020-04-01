@@ -54,7 +54,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	logger := LoggerModular.GetLogger()
 	if len(req.StrMountPoint) == 0 {
 		logger.Error("无挂载点~！")
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//chtask1 <- &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
 		//srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
@@ -62,7 +62,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	}
 	if len(req.StrChannelID) == 0 {
 		logger.Error("无设备ID~！")
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//chtask1 <- &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
 		//srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
@@ -70,7 +70,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	}
 	if len(req.StrChannelID) < 19 {
 		logger.Error("设备ID长度错误~！")
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//chtask1 <- &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
 		//srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
@@ -78,7 +78,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	}
 	if len(req.StrDate) == 0 {
 		logger.Error("无日期~！")
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//chtask1 <- &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
 		//srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
@@ -87,7 +87,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	_, err := time.Parse("2006-01-02", req.StrDate)
 	if err != nil {
 		logger.Error("日期格式错误~！")
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//chtask1 <- &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID}
 		//srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
@@ -105,7 +105,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	_, err = os.Stat(path)
 	if err != nil {
 		logger.Infof("该设备[%v]文件夹不存在~！", path)
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//err1 := srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate})
 		//if err1 != nil {
@@ -125,7 +125,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	res, err := exec_shell(path)
 	if err != nil {
 		logger.Errorf("删除文件出错：[%v]", err)
-		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID}
+		data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 		SetResult(data)
 		//chtask1 <- &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate}
 		//err1 := srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate})
@@ -143,7 +143,7 @@ func godeleteTask(req *cli.StreamReqData) {
 	logger.Infof("Delete File Success, mountpoint is: [%v], RelativePath is: [%v], loacation is: [%v], RecordID is: [%v], ChannelID is [%v]~~!",
 		req.StrMountPoint, req.StrRelativePath, res, req.StrRecordID, req.StrChannelID)
 
-	data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID}
+	data := &cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint}
 	SetResult(data)
 
 	//回复消息
@@ -177,12 +177,14 @@ func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_Get
 
 	res := GetResult()
 	for _, v := range res {
-		err := srv.Send(&cli.StreamResData{StrChannelID: v.StrChannelID, NRespond: v.NRespond, StrRecordID: v.StrRecordID, NStartTime: v.NStartTime, StrMountPoint: v.StrMountPoint})
-		if err != nil {
-			pThis.m_plogger.Errorf("回复删除成功消息失败:[%v]", err)
-			return errors.New("回复删除成功消息失败~!")
-		} else {
-			pThis.m_plogger.Infof("回复删除成功消息成功~！")
+		if v != nil {
+			err := srv.Send(&cli.StreamResData{StrChannelID: v.StrChannelID, NRespond: v.NRespond, StrRecordID: v.StrRecordID, NStartTime: v.NStartTime, StrMountPoint: v.StrMountPoint})
+			if err != nil {
+				pThis.m_plogger.Errorf("回复删除成功消息失败:[%v]", err)
+				continue
+			} else {
+				pThis.m_plogger.Infof("回复删除成功消息成功~！")
+			}
 		}
 	}
 	return nil
@@ -191,7 +193,7 @@ func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_Get
 func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	//获取挂载点
-	go pThis.GetMountPoint()
+	//go pThis.GetMountPoint()
 
 	chtask = make(chan *cli.StreamReqData, 10)
 

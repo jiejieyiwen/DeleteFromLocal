@@ -13,11 +13,11 @@ func init() {
 func main() {
 	logger := LoggerModular.GetLogger()
 
-	conf := EnvLoad.GetConf()
-	if err := conf.InitConfig(); err != nil {
-		logger.Error(err)
-		return
-	}
+	//conf := EnvLoad.GetConf()
+	//if err := conf.InitConfig(); err != nil {
+	//	logger.Error(err)
+	//	return
+	//}
 
 	err := svr.GetServerStream().InitServerStream()
 	if err != nil {
