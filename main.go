@@ -24,4 +24,10 @@ func main() {
 		logger.Errorf("Init DFL Modular Fail Err: [%v]", err)
 		return
 	}
+
+	//err := svr.GetServer().InitServer()
+	//if err != nil {
+	//	logger.Errorf("Init DFL Modular Fail Err: [%v]", err)
+	//	return
+	//}
 }
