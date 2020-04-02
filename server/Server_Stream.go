@@ -38,8 +38,6 @@ var StrMQURL string                   //MQ连接地址
 var chMQMsg chan cli.StreamResData
 var chTask chan *cli.StreamReqData
 
-var ConcurrentNumber int
-
 func goDeleteFile(req *cli.StreamReqData) {
 	logger := LoggerModular.GetLogger()
 	if req.StrMountPoint == "" {
@@ -141,7 +139,6 @@ func (pThis *ServerStream) InitServerStream() error {
 	//获取挂载点
 	go pThis.GetMountPoint()
 	//链接mq
-	var mq string
 	//StrMQURL = "http://192.168.0.56:8000/imccp-mediacore"
 	//conf := EnvLoad.GetConf()
 	//StrMQURL = conf.MediaConfig
@@ -152,12 +149,12 @@ func (pThis *ServerStream) InitServerStream() error {
 	//}
 
 	//生产环境
-	mq = Config.GetConfig().PublicConfig.AMQPURL
+	mq := Config.GetConfig().PublicConfig.AMQPURL
 	size := 1
 	pMQConnectPool.Init(size, mq)
 	go goSendMQMsg()
 
-	chTask = make(chan *cli.StreamReqData, ConcurrentNumber)
+	chTask = make(chan *cli.StreamReqData, Config.GetConfig().StorageConfig.ConcurrentNumber)
 	chMQMsg = make(chan cli.StreamResData, 1024)
 
 	go goStartDelete()

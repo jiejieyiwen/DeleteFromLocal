@@ -17,15 +17,22 @@ func GetConfig() *Config {
 type Config struct {
 	StorageConfig StorageConfig
 	PublicConfig  PublicConfig
+	DataUrlConfig DataUrlConfig
 }
 
 type StorageConfig struct {
-	ConcurrentNumber int `yaml:"ConcurrentNumber" json:"ConcurrentNumber"`
+	ConcurrentNumber int `yml:"ConcurrentNumber" json:"ConcurrentNumber"`
 }
 
 type PublicConfig struct {
-	RedisUrl string `yaml:"RedisURL" json:"RedisURL"`
-	AMQPURL  string `yaml:"AMQPURL" json:"AMQPURL"`
+	RedisURL   string `yml:"RedisURL" json:"RedisURL"`
+	AMQPURL    string `yml:"AMQPURL" json:"AMQPURL"`
+	MongoDBURL string `yml:"MongoDBURL" json:"MongoDBURL"`
+}
+
+type DataUrlConfig struct {
+	DataURL string `yml:"DataURL" json:"DataURL"`
+	AuthURL string `yml:"AuthURL" json:"AuthURL"`
 }
 
 func ReadConfig() error {
@@ -36,14 +43,19 @@ func ReadConfig() error {
 	if Config, err := iConfig.GetConfigInterface(1); err != nil {
 		return err
 	} else {
-		err := Config.ReadConfig(c.MediaConfig, "-storage/RecordDeleteService", &config.StorageConfig)
+		err := Config.ReadConfig(c.MediaConfig, "/imccp-mediacore-storage/RecordDeleteService", &config.StorageConfig)
 		if err != nil {
-			logger.Errorf("Get RecordDeleteService.yaml err: %s", err.Error())
+			logger.Errorf("Get RecordDeleteService.yml err: %s", err.Error())
 			return err
 		}
-		err = Config.ReadConfig(c.MediaConfig, "-public-Config", &config.PublicConfig)
+		err = Config.ReadConfig(c.MediaConfig, "/imccp-mediacore-public/Config", &config.PublicConfig)
 		if err != nil {
-			logger.Errorf("Get public/Config.yaml err: %s", err.Error())
+			logger.Errorf("Get public Config.yml err: %s", err.Error())
+			return err
+		}
+		err = Config.ReadConfig(c.MediaConfig, "/imccp-mediacore-public/DataURL", &config.DataUrlConfig)
+		if err != nil {
+			logger.Errorf("Get DataUrl Config.yml err: %s", err.Error())
 			return err
 		}
 	}

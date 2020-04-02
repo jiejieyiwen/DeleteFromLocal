@@ -49,7 +49,7 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 	pThis.m_strRedisUrl = conf.ServerConfig.RedisURL
 
 	//生产环境
-	pThis.m_strRedisUrl = Config.GetConfig().PublicConfig.RedisUrl
+	pThis.m_strRedisUrl = Config.GetConfig().PublicConfig.RedisURL
 
 	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
 	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
