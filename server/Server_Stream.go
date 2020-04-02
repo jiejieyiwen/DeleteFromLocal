@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"iPublic/EnvLoad"
 	"iPublic/LoggerModular"
 	"iPublic/RedisModular"
 	"net"
@@ -36,43 +35,36 @@ func GetServerStream() *ServerStream {
 var pMQConnectPool MqModular.ConnPool //MQ连接
 var StrMQURL string                   //MQ连接地址
 var chMQMsg chan cli.StreamResData
+var chTask chan *cli.StreamReqData
 
-func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_GetStreamServer) error {
-	if req == nil {
-		pThis.m_plogger.Info("Empty Msg！~")
-		return errors.New("Empty Msg")
-	}
-
-	if pThis.m_plogger == nil {
-		pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
-	}
-	pThis.m_plogger.Infof("Msg Recived~~~！:[%v]", req)
-
+func goDeleteFile(req *cli.StreamReqData) {
+	logger := LoggerModular.GetLogger()
 	if req.StrMountPoint == "" {
-		pThis.m_plogger.Error("无挂载点~！")
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
-		return errors.New("无挂载点")
+		logger.Error("无挂载点~！")
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
 	}
 	if req.StrChannelID == "" {
-		pThis.m_plogger.Error("无设备ID~！")
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
-		return errors.New("无设备ID")
+		logger.Error("无设备ID~！")
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
 	}
 	if len(req.StrChannelID) < 19 {
-		pThis.m_plogger.Error("设备ID长度错误~！")
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
-		return errors.New("设备ID长度错误")
+		logger.Error("设备ID长度错误~！")
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
 	}
 	if req.StrDate == "" {
-		pThis.m_plogger.Error("无日期~！")
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
-		return errors.New("无日期")
+		logger.Error("无日期~！")
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
+
 	}
 	_, err := time.Parse("2006-01-02", req.StrDate)
 	if err != nil {
-		pThis.m_plogger.Error("日期格式错误~！")
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID})
-		return errors.New("日期格式错误")
+		logger.Error("日期格式错误~！")
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
 	}
 
 	//拼凑需删除的文件夹路径
@@ -80,15 +72,14 @@ func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_Get
 	path += req.StrChannelID
 	path += "/"
 	path += req.StrDate
-	pThis.m_plogger.Infof("Path is :[%v]", path)
+	logger.Infof("Path is :[%v]", path)
 
 	//判断路径是否存在
 	_, err = os.Stat(path)
 	if err != nil {
-		pThis.m_plogger.Infof("该设备[%v]文件夹不存在~！", path)
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate})
-		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate}
-		return err
+		logger.Infof("该设备[%v]文件夹不存在~！", path)
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
 	}
 
 	//计算删除耗时
@@ -96,22 +87,33 @@ func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_Get
 	//脚本删除
 	res, err := exec_shell(path)
 	if err != nil {
-		pThis.m_plogger.Errorf("删除文件出错：[%v]", err)
-		srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate})
-		return err
+		logger.Errorf("删除文件出错：[%v]", err)
+		chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		return
 	}
 	t2 := time.Now()
-	pThis.m_plogger.Infof("Spend time:[%v] 毫秒", t2.Sub(t1).Milliseconds())
-	pThis.m_plogger.Infof("Delete File Success, mountpoint is: [%v], RelativePath is: [%v], loacation is: [%v], RecordID is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, req.StrRelativePath, res, req.StrRecordID, req.StrChannelID)
+	logger.Infof("Spend time:[%v] 毫秒", t2.Sub(t1).Milliseconds())
+	logger.Infof("Delete File Success, mountpoint is: [%v], RelativePath is: [%v], loacation is: [%v], RecordID is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, req.StrRelativePath, res, req.StrRecordID, req.StrChannelID)
+	chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+}
 
-	//回复成功消息
-	err = srv.Send(&cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, NStartTime: req.NStartTime, StrMountPoint: req.StrMountPoint})
-	if err != nil {
-		pThis.m_plogger.Errorf("回复删除成功消息失败:[%v]", err)
-		return err
-	} else {
-		pThis.m_plogger.Infof("回复删除成功消息成功~！")
+func goStartDelete() {
+	for task := range chTask {
+		go goDeleteFile(task)
 	}
+}
+
+func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_GetStreamServer) error {
+	if req == nil {
+		pThis.m_plogger.Info("Empty Msg！~")
+		return errors.New("Empty Msg")
+	}
+	if pThis.m_plogger == nil {
+		pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
+	}
+	pThis.m_plogger.Infof("Msg Recived~~~！:[%v]", req)
+	srv.Send(&cli.StreamResData{NRespond: 1})
+	chTask <- req
 	return nil
 }
 
@@ -137,9 +139,10 @@ func (pThis *ServerStream) InitServerStream() error {
 	//go pThis.GetMountPoint()
 
 	//链接mq
-	conf := EnvLoad.GetConf()
-	conf.ServerConfig.RabbitURL = "http://192.168.0.56:8000/imccp-mediacore"
-	StrMQURL = conf.ServerConfig.RabbitURL
+
+	StrMQURL = "http://192.168.0.56:8000/imccp-mediacore"
+	//conf := EnvLoad.GetConf()
+	//StrMQURL = conf.MediaConfig
 	StrMQURL, size, err1 := MqModular.GetServerURL(StrMQURL)
 	if err1 != nil {
 		pThis.m_plogger.Errorf("Get MQ url form ConfigCenter Error:[%v]", err1)
@@ -147,10 +150,12 @@ func (pThis *ServerStream) InitServerStream() error {
 	}
 	size = 1
 	pMQConnectPool.Init(size, StrMQURL)
+	go goSendMQMsg()
 
+	chTask = make(chan *cli.StreamReqData, 10)
 	chMQMsg = make(chan cli.StreamResData, 1024)
 
-	go goSendMQMsg()
+	go goStartDelete()
 
 	//获取本机IP地址
 	ip, err := pThis.GetIPAddres()
