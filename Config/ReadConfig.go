@@ -9,15 +9,23 @@ import (
 
 var config Config
 
+//http://config.mj.cn/imccp-mediacore
 func GetConfig() *Config {
 	return &config
 }
 
 type Config struct {
-	StorageTs StoragTSeDelete
+	StorageConfig StorageConfig
+	PublicConfig  PublicConfig
 }
-type StoragTSeDelete struct {
+
+type StorageConfig struct {
 	ConcurrentNumber int `yaml:"ConcurrentNumber" json:"ConcurrentNumber"`
+}
+
+type PublicConfig struct {
+	RedisUrl string `yaml:"RedisURL" json:"RedisURL"`
+	AMQPURL  string `yaml:"AMQPURL" json:"AMQPURL"`
 }
 
 func ReadConfig() error {
@@ -25,12 +33,17 @@ func ReadConfig() error {
 	logger := LoggerModular.GetLogger().WithFields(logrus.Fields{
 		"MediaConfig": c.MediaConfig, "Priority": c.Priority, "PriorityLimit": c.PriorityLimit,
 	})
-	if Config, err := iConfig.GetConfigInterface(0); err != nil {
+	if Config, err := iConfig.GetConfigInterface(1); err != nil {
 		return err
 	} else {
-		err := Config.ReadConfig(c.MediaConfig, "/imccp-mediacore-storage/Config", &config.StorageTs)
+		err := Config.ReadConfig(c.MediaConfig, "-storage/RecordDeleteService", &config.StorageConfig)
 		if err != nil {
-			logger.Errorf("Get imccp-mediacore-storage/Config err: %s", err.Error())
+			logger.Errorf("Get RecordDeleteService.yaml err: %s", err.Error())
+			return err
+		}
+		err = Config.ReadConfig(c.MediaConfig, "-public-Config", &config.PublicConfig)
+		if err != nil {
+			logger.Errorf("Get public/Config.yaml err: %s", err.Error())
 			return err
 		}
 	}

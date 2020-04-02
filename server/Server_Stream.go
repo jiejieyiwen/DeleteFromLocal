@@ -1,6 +1,7 @@
 package server
 
 import (
+	"DeleteFromLocal1/Config"
 	"DeleteFromLocal1/MqModular"
 	cli "StorageMaintainer1/StorageMaintainerGRpc/StorageMaintainerMessage"
 	"encoding/json"
@@ -36,6 +37,8 @@ var pMQConnectPool MqModular.ConnPool //MQ连接
 var StrMQURL string                   //MQ连接地址
 var chMQMsg chan cli.StreamResData
 var chTask chan *cli.StreamReqData
+
+var ConcurrentNumber int
 
 func goDeleteFile(req *cli.StreamReqData) {
 	logger := LoggerModular.GetLogger()
@@ -136,23 +139,25 @@ func goSendMQMsg() {
 func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	//获取挂载点
-	//go pThis.GetMountPoint()
-
+	go pThis.GetMountPoint()
 	//链接mq
-
-	StrMQURL = "http://192.168.0.56:8000/imccp-mediacore"
+	var mq string
+	//StrMQURL = "http://192.168.0.56:8000/imccp-mediacore"
 	//conf := EnvLoad.GetConf()
 	//StrMQURL = conf.MediaConfig
-	StrMQURL, size, err1 := MqModular.GetServerURL(StrMQURL)
-	if err1 != nil {
-		pThis.m_plogger.Errorf("Get MQ url form ConfigCenter Error:[%v]", err1)
-		return err1
-	}
-	size = 1
-	pMQConnectPool.Init(size, StrMQURL)
+	//StrMQURL, size, err1 := MqModular.GetServerURL(StrMQURL)
+	//if err1 != nil {
+	//	pThis.m_plogger.Errorf("Get MQ url form ConfigCenter Error:[%v]", err1)
+	//	return err1
+	//}
+
+	//生产环境
+	mq = Config.GetConfig().PublicConfig.AMQPURL
+	size := 1
+	pMQConnectPool.Init(size, mq)
 	go goSendMQMsg()
 
-	chTask = make(chan *cli.StreamReqData, 10)
+	chTask = make(chan *cli.StreamReqData, ConcurrentNumber)
 	chMQMsg = make(chan cli.StreamResData, 1024)
 
 	go goStartDelete()

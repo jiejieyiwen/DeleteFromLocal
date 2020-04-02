@@ -1,6 +1,7 @@
 package main
 
 import (
+	"DeleteFromLocal1/Config"
 	"iPublic/EnvLoad"
 	"iPublic/LoggerModular"
 )
@@ -18,13 +19,14 @@ func main() {
 		return
 	}
 
-	//err := svr.GetServerStream().InitServerStream()
-	//if err != nil {
-	//	logger.Errorf("Init DFL Modular Fail Err: [%v]", err)
-	//	return
-	//}
+	config := Config.GetConfig()
+	if err := Config.ReadConfig(); err != nil {
+		logger.Error(err)
+		return
+	}
+	logger.Info(config)
 
-	//err := svr.GetServer().InitServer()
+	//err := server.GetServerStream().InitServerStream()
 	//if err != nil {
 	//	logger.Errorf("Init DFL Modular Fail Err: [%v]", err)
 	//	return
