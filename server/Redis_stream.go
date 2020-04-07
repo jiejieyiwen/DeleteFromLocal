@@ -1,10 +1,9 @@
 package server
 
 import (
-	"DeleteFromLocal1/Config"
+	"Config"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"iPublic/EnvLoad"
 	"iPublic/LoggerModular"
 	"iPublic/RedisModular"
 	"net"
@@ -44,16 +43,13 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 		pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	}
 	//链接redis
-	conf := EnvLoad.GetConf()
 	pThis.m_RedisCon = RedisModular.GetRedisPool()
-	pThis.m_strRedisUrl = conf.ServerConfig.RedisURL
-
-	//生产环境
 	pThis.m_strRedisUrl = Config.GetConfig().PublicConfig.RedisURL
 
 	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
 	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
 	//pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
+	pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/0"
 
 	err = pThis.m_RedisCon.DaliWithURL(pThis.m_strRedisUrl)
 	if err != nil {
