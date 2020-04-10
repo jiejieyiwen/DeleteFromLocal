@@ -2,6 +2,7 @@ package server
 
 import (
 	"Config"
+	cli "StorageMaintainer1/StorageMaintainerGRpc/StorageMaintainerMessage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"iPublic/LoggerModular"
@@ -49,7 +50,7 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
 	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
 	//pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
-	pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/0"
+	//pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/0"
 
 	err = pThis.m_RedisCon.DaliWithURL(pThis.m_strRedisUrl)
 	if err != nil {
@@ -68,8 +69,10 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 	//IP地址、挂载点写入
 	value := ip + ":" + strconv.Itoa(port)
 	temmap := pThis.GetMountPointMap()
+	pThis.MountPonitTask = make(map[string]chan *cli.StreamReqData)
 	var value1 string
 	for key, _ := range temmap {
+		pThis.MountPonitTask[key] = make(chan *cli.StreamReqData, Config.GetConfig().StorageConfig.ConcurrentNumber)
 		value1 += key
 		value1 += ":"
 	}
