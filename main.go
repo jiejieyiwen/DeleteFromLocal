@@ -2,8 +2,10 @@ package main
 
 import (
 	"DeleteFromLocal1/server"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"iPublic/EnvLoad"
 	"iPublic/LoggerModular"
+	"net/http"
 )
 
 func init() {
@@ -24,5 +26,12 @@ func main() {
 	if err != nil {
 		logger.Errorf("Init DFL Modular Fail Err: [%v]", err)
 		return
+	}
+
+	http.Handle("/metrics", promhttp.Handler())
+	err = http.ListenAndServe(":9527", nil)
+	if err != nil {
+		logger.Errorf("http Listen Fail Err: [%v]", err)
+		panic(err)
 	}
 }

@@ -99,8 +99,10 @@ func (pThis *ServerStream) goDelete(path, mp string, req *cli.StreamReqData) {
 		pThis.chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
 		return
 	}
-	t2 := time.Now()
-	logger.Infof("Spend time:[%v] 毫秒, 协程：[%v]", t2.Sub(t1).Milliseconds(), mp)
+	durations := time.Since(t1).Seconds()
+	_RecordDeleteTotal.WithLabelValues(mp).Inc()
+	_RecordDeleteReqDur.WithLabelValues(mp).Observe(durations)
+	logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, mp)
 	logger.Infof("Delete File Success, mountpoint is: [%v], RelativePath is: [%v], loacation is: [%v], RecordID is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, req.StrRelativePath, res, req.StrRecordID, req.StrChannelID)
 	pThis.chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
 }
