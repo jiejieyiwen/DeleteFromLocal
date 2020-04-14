@@ -43,13 +43,29 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 	if pThis.m_plogger == nil {
 		pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	}
+	//链接存储redis
+	pThis.StorageRedis = RedisModular.GetRedisPool()
+	pThis.StorageRedisUrl = Config.GetConfig().StorageRedis.RedisURL
+
+	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
+	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
+	//pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
+	//pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/2"
+
+	err = pThis.StorageRedis.DaliWithURL(pThis.StorageRedisUrl)
+	if err != nil {
+		pThis.m_plogger.Errorf("Init StorageRedis Failed, URL:%v, errors: %v", pThis.StorageRedisUrl, err)
+		return err
+	}
+	pThis.m_plogger.Infof("Init StorageRedis Success~!", pThis.StorageRedisUrl)
+
 	//链接redis
 	pThis.m_RedisCon = RedisModular.GetRedisPool()
 	pThis.m_strRedisUrl = Config.GetConfig().PublicConfig.RedisURL
 
 	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
 	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
-	pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
+	//pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
 	//pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/2"
 
 	err = pThis.m_RedisCon.DaliWithURL(pThis.m_strRedisUrl)

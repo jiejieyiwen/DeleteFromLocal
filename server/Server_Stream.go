@@ -30,6 +30,9 @@ type ServerStream struct {
 	chMQMsg        chan cli.StreamResData
 	pMQConnectPool MqModular.ConnPool //MQ连接
 	StrMQURL       string             //MQ连接地址
+
+	StorageRedis    *RedisModular.RedisConn
+	StorageRedisUrl string
 }
 
 var serverstream ServerStream
@@ -88,8 +91,8 @@ func (pThis *ServerStream) goDelete(mp string, req *cli.StreamReqData) {
 	_, err = os.Stat(path)
 	if err != nil {
 		logger.Infof("该设备[%v]文件夹不存在~！", path)
-		n := rand.Intn(300) + 100
-		go pThis.goWriteInfoToRedis(float64(n), mp)
+		//n := rand.Intn(300) + 100
+		//go pThis.goWriteInfoToRedis(float64(n), mp)
 		pThis.chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
 		return
 	}
@@ -117,37 +120,37 @@ func (pThis *ServerStream) goWriteInfoToRedis(durations float64, mp string) {
 	key += t
 	key += "_"
 	key += mp
-	if pThis.m_RedisCon.Client.Exists(key).Val() == 0 {
-		pThis.m_RedisCon.Client.Expire(key, time.Hour*72)
+	if pThis.StorageRedis.Client.Exists(key).Val() == 0 {
+		pThis.StorageRedis.Client.Expire(key, time.Hour*72)
 	}
-	pThis.m_RedisCon.Client.Incr(key)
+	pThis.StorageRedis.Client.Incr(key)
 
 	keys := "RecordDeleteMap_"
 	keys += t
 	keys += "_"
 	keys += mp
-	if pThis.m_RedisCon.Client.Exists(keys).Val() == 0 {
-		pThis.m_RedisCon.Client.Expire(keys, time.Hour*72)
+	if pThis.StorageRedis.Client.Exists(keys).Val() == 0 {
+		pThis.StorageRedis.Client.Expire(keys, time.Hour*72)
 	}
 
-	if durations <= 100 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "100", 1)
+	if durations <= 10 {
+		pThis.StorageRedis.Client.HIncrBy(keys, "10", 1)
+	} else if durations > 10 && durations <= 20 {
+		pThis.StorageRedis.Client.HIncrBy(keys, "20", 1)
+	} else if durations > 20 && durations <= 30 {
+		pThis.StorageRedis.Client.HIncrBy(keys, "30", 1)
+	} else if durations > 30 && durations <= 40 {
+		pThis.StorageRedis.Client.HIncrBy(keys, "40", 1)
+	} else if durations > 40 && durations <= 50 {
+		pThis.StorageRedis.Client.HIncrBy(keys, "50", 1)
+	} else if durations > 50 && durations <= 100 {
+		pThis.StorageRedis.Client.HIncrBy(keys, "100", 1)
 	} else if durations > 100 && durations <= 200 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "200", 1)
-	} else if durations > 200 && durations <= 400 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "400", 1)
-	} else if durations > 400 && durations <= 800 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "800", 1)
-	} else if durations > 800 && durations <= 1500 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "1500", 1)
-	} else if durations > 1500 && durations <= 3000 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "3000", 1)
-	} else if durations > 3000 && durations <= 5000 {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "5000", 1)
+		pThis.StorageRedis.Client.HIncrBy(keys, "200", 1)
 	} else {
-		pThis.m_RedisCon.Client.HIncrBy(keys, "INF", 1)
+		pThis.StorageRedis.Client.HIncrBy(keys, "INF", 1)
 	}
-	pThis.m_RedisCon.Client.Expire(key, time.Hour*72)
+	pThis.StorageRedis.Client.Expire(key, time.Hour*72)
 }
 
 func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_GetStreamServer) error {
@@ -190,11 +193,11 @@ func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	rand.Seed(time.Now().UnixNano())
 	//获取挂载点
-	//go pThis.GetMountPoint()
+	go pThis.GetMountPoint()
 
 	//链接mq
 	pThis.StrMQURL = Config.GetConfig().PublicConfig.AMQPURL
-	pThis.StrMQURL = "amqp://guest:guest@192.168.0.56:30001/"
+	//pThis.StrMQURL = "amqp://guest:guest@192.168.0.56:30001/"
 	//pThis.StrMQURL = "amqp://dengyw:dengyw@49.234.88.77:5672/dengyw"
 	size := 1
 	pThis.m_plogger.Infof("StrMQURL is: [%v]", pThis.StrMQURL)
@@ -230,8 +233,8 @@ func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger.Info("Write Data to Redis Success")
 
 	//开启删除线程
-	pThis.MountPonitTask["/data/yysha002/"] = make(chan *cli.StreamReqData, 50)
-	pThis.MountPonitTask["/data/yysha011/"] = make(chan *cli.StreamReqData, 50)
+	//pThis.MountPonitTask["/data/yysha002/"] = make(chan *cli.StreamReqData, 50)
+	//pThis.MountPonitTask["/data/yysha011/"] = make(chan *cli.StreamReqData, 50)
 	for key, chanTask := range pThis.MountPonitTask {
 		go pThis.goDeleteFileByMountPoint(key, chanTask)
 	}
