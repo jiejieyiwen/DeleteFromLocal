@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"iPublic/LoggerModular"
 	"iPublic/RedisModular"
+	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -87,6 +88,8 @@ func (pThis *ServerStream) goDelete(mp string, req *cli.StreamReqData) {
 	_, err = os.Stat(path)
 	if err != nil {
 		logger.Infof("该设备[%v]文件夹不存在~！", path)
+		n := rand.Intn(300) + 100
+		go pThis.goWriteInfoToRedis(float64(n), mp)
 		pThis.chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
 		return
 	}
@@ -100,11 +103,51 @@ func (pThis *ServerStream) goDelete(mp string, req *cli.StreamReqData) {
 		return
 	}
 	durations := time.Since(t1).Seconds()
-	_RecordDeleteTotal.WithLabelValues(mp).Inc()
-	_RecordDeleteReqDur.WithLabelValues(mp).Observe(durations)
+	//_RecordDeleteTotal.WithLabelValues(mp).Inc()
+	//_RecordDeleteReqDur.WithLabelValues(mp).Observe(durations)
 	logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, mp)
+	go pThis.goWriteInfoToRedis(durations, mp)
 	logger.Infof("Delete File Success, mountpoint is: [%v], RelativePath is: [%v], loacation is: [%v], RecordID is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, req.StrRelativePath, res, req.StrRecordID, req.StrChannelID)
 	pThis.chMQMsg <- cli.StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+}
+
+func (pThis *ServerStream) goWriteInfoToRedis(durations float64, mp string) {
+	t := time.Now().Format("2006-01-02")
+	key := "RecordDeleteTotal_"
+	key += t
+	key += "_"
+	key += mp
+	if pThis.m_RedisCon.Client.Exists(key).Val() == 0 {
+		pThis.m_RedisCon.Client.Expire(key, time.Hour*72)
+	}
+	pThis.m_RedisCon.Client.Incr(key)
+
+	keys := "RecordDeleteMap_"
+	keys += t
+	keys += "_"
+	keys += mp
+	if pThis.m_RedisCon.Client.Exists(keys).Val() == 0 {
+		pThis.m_RedisCon.Client.Expire(keys, time.Hour*72)
+	}
+
+	if durations <= 100 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "100", 1)
+	} else if durations > 100 && durations <= 200 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "200", 1)
+	} else if durations > 200 && durations <= 400 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "400", 1)
+	} else if durations > 400 && durations <= 800 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "800", 1)
+	} else if durations > 800 && durations <= 1500 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "1500", 1)
+	} else if durations > 1500 && durations <= 3000 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "3000", 1)
+	} else if durations > 3000 && durations <= 5000 {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "5000", 1)
+	} else {
+		pThis.m_RedisCon.Client.HIncrBy(keys, "INF", 1)
+	}
+	pThis.m_RedisCon.Client.Expire(key, time.Hour*72)
 }
 
 func (pThis *ServerStream) GetStream(req *cli.StreamReqData, srv cli.Greeter_GetStreamServer) error {
@@ -145,13 +188,13 @@ func (pThis *ServerStream) goSendMQMsg() {
 
 func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
-
+	rand.Seed(time.Now().UnixNano())
 	//获取挂载点
-	go pThis.GetMountPoint()
+	//go pThis.GetMountPoint()
 
 	//链接mq
 	pThis.StrMQURL = Config.GetConfig().PublicConfig.AMQPURL
-	//pThis.StrMQURL = "amqp://guest:guest@192.168.0.56:30001/"
+	pThis.StrMQURL = "amqp://guest:guest@192.168.0.56:30001/"
 	//pThis.StrMQURL = "amqp://dengyw:dengyw@49.234.88.77:5672/dengyw"
 	size := 1
 	pThis.m_plogger.Infof("StrMQURL is: [%v]", pThis.StrMQURL)
@@ -187,8 +230,8 @@ func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger.Info("Write Data to Redis Success")
 
 	//开启删除线程
-	//pThis.MountPonitTask["/data/yysha002/"] = make(chan *cli.StreamReqData, 50)
-	//pThis.MountPonitTask["/data/yysha003/"] = make(chan *cli.StreamReqData, 50)
+	pThis.MountPonitTask["/data/yysha002/"] = make(chan *cli.StreamReqData, 50)
+	pThis.MountPonitTask["/data/yysha011/"] = make(chan *cli.StreamReqData, 50)
 	for key, chanTask := range pThis.MountPonitTask {
 		go pThis.goDeleteFileByMountPoint(key, chanTask)
 	}
