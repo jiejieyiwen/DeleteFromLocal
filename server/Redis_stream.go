@@ -49,7 +49,7 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 
 	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
 	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
-	pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
+	//pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
 	//pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/0"
 
 	err = pThis.m_RedisCon.DaliWithURL(pThis.m_strRedisUrl)
@@ -70,6 +70,8 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 		"192.168.2.53":  "192.168.2.53",
 		"192.168.0.122": "192.168.0.122",
 	}
+
+	pThis.m_RedisCon.Client.Do("")
 
 	//判断ip和port是否存在
 	if ip == "" || port == 0 {
