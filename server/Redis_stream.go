@@ -39,7 +39,7 @@ func (pThis *ServerStream) GetIPAddres() (add string, err error) {
 }
 
 //写入redis
-func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
+func (pThis *ServerStream) WriteToRedis() error {
 	if pThis.m_plogger == nil {
 		pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	}
@@ -49,10 +49,10 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 
 	//pThis.m_strRedisUrl = "redis://:S0o9l@7&PO@49.234.88.77:8888/8"
 	//pThis.m_strRedisUrl = "redis://:B9OxgC3HYg@192.168.0.56:30003/6"
-	//pThis.m_strRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
+	//pThis.StorageRedisUrl = "redis://:inphase123.@127.0.0.1:15675/2"
 	//pThis.m_strRedisUrl = "redis://:inphase123.@192.168.2.64:23680/2"
 
-	err = pThis.StorageRedis.DaliWithURL(pThis.StorageRedisUrl)
+	err := pThis.StorageRedis.DaliWithURL(pThis.StorageRedisUrl)
 	if err != nil {
 		pThis.m_plogger.Errorf("Init StorageRedis Failed, URL:%v, errors: %v", pThis.StorageRedisUrl, err)
 		return err
@@ -74,43 +74,40 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 		return err
 	}
 	pThis.m_plogger.Infof("Init Redis Success~!", pThis.m_strRedisUrl)
+	pThis.MountPonitTask = make(map[string]chan *cli.StreamReqData)
+	return nil
+}
 
-	mapHostManager := map[string]string{
-		"192.168.2.131": "10.0.2.131",
-		"192.168.2.132": "10.0.2.132",
-		"192.168.2.133": "10.0.2.133",
-		"192.168.2.134": "10.0.2.134",
-		"192.168.2.50":  "192.168.2.50",
-		"192.168.2.51":  "192.168.2.51",
-		"192.168.2.52":  "192.168.2.52",
-		"192.168.2.53":  "192.168.2.53",
-		"192.168.0.122": "192.168.0.122",
-	}
-
-	//pThis.m_RedisCon.Client.Do("")
-
+func (pThis *ServerStream) goUpdateMountPoint(ip string, port int) {
 	//判断ip和port是否存在
 	if ip == "" || port == 0 {
-		return errors.New("No IP or Port~~!")
+		pThis.m_plogger.Errorf("No IP or Port~~!")
+		return
 	}
 	pThis.m_strIP = ip
 	pThis.m_nPort = port
-
-	//IP地址、挂载点写入
-	//value := ip + ":" + strconv.Itoa(port)
 	value := ip
-	temmap := pThis.GetMountPointMap()
-	pThis.MountPonitTask = make(map[string]chan *cli.StreamReqData)
-	var value1 string
-	for key, _ := range temmap {
-		pThis.MountPonitTask[key] = make(chan *cli.StreamReqData, Config.GetConfig().StorageConfig.ConcurrentNumber)
-		//pThis.MountPonitTask[key] = make(chan *cli.StreamReqData, 50)
-		value1 += key
-		value1 += ":"
-	}
+	for {
+		mapHostManager := map[string]string{
+			"192.168.2.131": "10.0.2.131",
+			"192.168.2.132": "10.0.2.132",
+			"192.168.2.133": "10.0.2.133",
+			"192.168.2.134": "10.0.2.134",
+			"192.168.2.50":  "192.168.2.50",
+			"192.168.2.51":  "192.168.2.51",
+			"192.168.2.52":  "192.168.2.52",
+			"192.168.2.53":  "192.168.2.53",
+			"192.168.0.122": "192.168.0.122",
+		}
+		temmap := pThis.GetMountPointMap()
+		var value1 string
+		for key, _ := range temmap {
+			pThis.MountPonitTask[key] = make(chan *cli.StreamReqData, Config.GetConfig().StorageConfig.ConcurrentNumber)
+			value1 += key
+			value1 += ":"
+		}
 
-	go func() {
-		for {
+		go func() {
 			StatusCmd := pThis.m_RedisCon.Client.Set("DeleteServer:"+value, value1, time.Second*60*25)
 			if StatusCmd.Err() != nil {
 				pThis.m_plogger.Errorf("Write MountPoint to Redis Falied:[%v]", StatusCmd.Err())
@@ -118,16 +115,14 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 				pThis.m_plogger.Info("Write MountPoint to Redis Success")
 				time.Sleep(time.Second * 60 * 25)
 			}
-		}
-	}()
+		}()
 
-	key := "Host_DeleteServerManager_"
-	key += ip
-	values := mapHostManager[ip]
-	values += ":" + strconv.Itoa(port)
+		key := "Host_DeleteServerManager_"
+		key += ip
+		values := mapHostManager[ip]
+		values += ":" + strconv.Itoa(port)
 
-	go func() {
-		for {
+		go func() {
 			StatusCmd := pThis.m_RedisCon.Client.Set(key, values, time.Second*60*25)
 			if StatusCmd.Err() != nil {
 				pThis.m_plogger.Errorf("Write Host_DeleteServerManager to Redis Falied:[%v]", StatusCmd.Err())
@@ -135,8 +130,7 @@ func (pThis *ServerStream) WriteToRedis(ip string, port int) (err error) {
 				pThis.m_plogger.Info("Write Host_DeleteServerManager to Redis Success")
 				time.Sleep(time.Second * 60 * 25)
 			}
-		}
-	}()
-
-	return nil
+		}()
+		time.Sleep(time.Second * 25)
+	}
 }

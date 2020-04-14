@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc"
 	"iPublic/LoggerModular"
 	"iPublic/RedisModular"
-	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -191,7 +190,7 @@ func (pThis *ServerStream) goSendMQMsg() {
 
 func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano())
 	//获取挂载点
 	go pThis.GetMountPoint()
 
@@ -225,16 +224,15 @@ func (pThis *ServerStream) InitServerStream() error {
 	port := lis.Addr().(*net.TCPAddr).Port
 
 	//写入redis
-	err = pThis.WriteToRedis(ip, port)
+	err = pThis.WriteToRedis()
 	if err != nil {
-		pThis.m_plogger.Errorf("Write Data to Redis Err: [%v]", err)
 		return err
 	}
-	pThis.m_plogger.Info("Write Data to Redis Success")
+	go pThis.goUpdateMountPoint(ip, port)
 
 	//开启删除线程
-	//pThis.MountPonitTask["/data/yysha002/"] = make(chan *cli.StreamReqData, 50)
-	//pThis.MountPonitTask["/data/yysha011/"] = make(chan *cli.StreamReqData, 50)
+	pThis.MountPonitTask["/data/yysha002/"] = make(chan *cli.StreamReqData, 50)
+	pThis.MountPonitTask["/data/yysha011/"] = make(chan *cli.StreamReqData, 50)
 	for key, chanTask := range pThis.MountPonitTask {
 		go pThis.goDeleteFileByMountPoint(key, chanTask)
 	}
