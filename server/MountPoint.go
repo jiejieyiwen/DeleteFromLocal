@@ -65,24 +65,20 @@ func (pThis *ServerStream) GetMountPointByShell() {
 	if pThis.m_plogger == nil {
 		pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 	}
-	for {
-		pThis.m_mapMountPointLock.Lock()
-		pThis.m_mapMountPoint = make(map[string]int)
-		strLineData, err := getMountPoint()
-		if err != nil {
-			pThis.m_plogger.Errorf("获取挂载点出错: [%v]", err)
-			continue
-		} else {
-			//pThis.m_plogger.Infof("挂载点为: [%v]", strLineData)
-			sliceStr := strings.Split(strLineData, "\n")
-			for _, s := range sliceStr {
-				s += "/"
-				pThis.m_mapMountPoint[s] = 1
-			}
-			pThis.m_mapMountPointLock.Unlock()
-			pThis.m_plogger.Infof("Update MountPoint Compelete")
+	pThis.m_mapMountPointLock.Lock()
+	pThis.m_mapMountPoint = make(map[string]int)
+	strLineData, err := getMountPoint()
+	if err != nil {
+		pThis.m_plogger.Errorf("获取挂载点出错: [%v]", err)
+	} else {
+		//pThis.m_plogger.Infof("挂载点为: [%v]", strLineData)
+		sliceStr := strings.Split(strLineData, "\n")
+		for _, s := range sliceStr {
+			s += "/"
+			pThis.m_mapMountPoint[s] = 1
 		}
-		time.Sleep(time.Second * 60 * 30)
+		pThis.m_mapMountPointLock.Unlock()
+		pThis.m_plogger.Infof("Update MountPoint Compelete")
 	}
 }
 

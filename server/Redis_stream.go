@@ -99,6 +99,8 @@ func (pThis *ServerStream) goUpdateMountPoint(ip string, port int) {
 		"192.168.2.132": "10.0.2.132",
 		"192.168.2.133": "10.0.2.133",
 		"192.168.2.134": "10.0.2.134",
+		"192.168.2.79":  "10.0.2.79",
+		"192.168.2.84":  "10.0.2.84",
 		"192.168.2.50":  "192.168.2.50",
 		"192.168.2.51":  "192.168.2.51",
 		"192.168.2.52":  "192.168.2.52",
@@ -107,6 +109,9 @@ func (pThis *ServerStream) goUpdateMountPoint(ip string, port int) {
 		"192.168.0.101": "192.168.0.101",
 	}
 	for {
+		//获取挂载点
+		pThis.GetMountPointByShell()
+
 		temmap := pThis.GetMountPointMap()
 		var value1 string
 		pThis.MountPonitTaskLock.Lock()
@@ -139,6 +144,6 @@ func (pThis *ServerStream) goUpdateMountPoint(ip string, port int) {
 			pThis.m_plogger.Info("Write Host_DeleteServerManager to Redis Success")
 
 		}
-		time.Sleep(time.Second * 60 * 3)
+		time.Sleep(time.Second * 60 * 5)
 	}
 }

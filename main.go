@@ -57,7 +57,7 @@ func main() {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		err := http.ListenAndServe(":9527", nil)
+		err := http.ListenAndServe(":41011", nil)
 		if err != nil {
 			logger.Errorf("http Listen Fail Err: [%v]", err)
 			panic(err)

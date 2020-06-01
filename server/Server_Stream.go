@@ -11,7 +11,6 @@ import (
 	"iPublic/LoggerModular"
 	"iPublic/RedisModular"
 	"net"
-	"os"
 	"sync"
 	"time"
 )
@@ -74,72 +73,37 @@ func (pThis *ServerStream) goDeleteFileByMountPoint(mp string) {
 		task := pThis.GettMountPonitTask(mp)
 		for _, req := range task {
 			chxianliu <- 0
-			go pThis.goDelete(req.StrMountPoint, req, chxianliu)
+			pThis.goDelete(req.StrMountPoint, req, chxianliu)
 		}
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Second)
 	}
 }
 
 func (pThis *ServerStream) goDelete(mp string, req *StreamReqData, chxianliu chan int) {
 	logger := LoggerModular.GetLogger()
-	logger.Infof("线程：[%v] 处理任务：[%v]", mp, req)
+	logger.Infof("线程处理任务开始: [%v], [%v]", mp, req)
+	if req.StrChannelID == "" || req.StrMountPoint == "" || req.StrDate == "" {
+		logger.Errorf("路径错误")
+		return
+	}
 	path := req.StrMountPoint
 	path += req.StrChannelID
 	path += "/"
 	path += req.StrDate
-	logger.Infof("Path is :[%v]", path)
-
-	//判断路径是否存在
-	_, err := os.Stat(path)
-	if err != nil {
-		go pThis.goWriteFileLostInfoToRedis(mp)
-		logger.Infof("该设备文件夹不存在~！path: [%v]", path)
-		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: 3, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
-		<-chxianliu
-		//go Mongomon.GetMongoManager().WriteNoExistFileToMongo(pThis.IP, path, req.StrDate)
-		return
-	}
-
-	//计算删除耗时
 	t1 := time.Now()
-
-	//脚本删除
 	res, err := exec_shell(path)
 	if err != nil {
-		logger.Errorf("删除文件出错：[%v], Path: [%v]", err.Error(), path)
-		time.Sleep(time.Second)
-		trtcon := 0
-		for {
-			err1 := removeObject(path)
-			if err1 != nil {
-				trtcon++
-				if trtcon >= 3 {
-					logger.Errorf("无法删除文件夹：[%v], Path: [%v]", err1.Error(), path)
-					go Mongomon.GetMongoManager().WriteDeleteFailFileToMongo(pThis.IP, path, req.StrDate, req.StrChannelID, req.StrMountPoint)
-					break
-				}
-				time.Sleep(time.Second)
-				continue
-			} else {
-				durations := time.Since(t1).Seconds()
-				logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, mp)
-				go pThis.goWriteInfoToRedis(durations, req.StrMountPoint)
-				logger.Infof("Delete File Success Again, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, res, req.StrChannelID)
-				pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
-				<-chxianliu
-				return
-			}
-		}
+		logger.Errorf("删除文件出错：[%v], Path: [%v], Time: [%v]", err.Error(), path, time.Since(t1).Seconds())
+		go Mongomon.GetMongoManager().WriteDeleteFailFileToMongo(pThis.IP, path, req.StrDate, req.StrChannelID, req.StrMountPoint)
 		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
-		<-chxianliu
-		return
+	} else {
+		logger.Infof("Spend time:[%v] 秒, 协程：[%v]", time.Since(t1).Seconds(), mp)
+		go pThis.goWriteInfoToRedis(time.Since(t1).Seconds(), req.StrMountPoint)
+		logger.Infof("Delete File Success, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, res, req.StrChannelID)
+		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
 	}
-	durations := time.Since(t1).Seconds()
-	logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, mp)
-	go pThis.goWriteInfoToRedis(durations, req.StrMountPoint)
-	logger.Infof("Delete File Success, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, res, req.StrChannelID)
-	pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
 	<-chxianliu
+	logger.Infof("线程处理任务结束：[%v]", mp)
 }
 
 func (pThis *ServerStream) goWriteInfoToRedis(durations float64, mp string) {
@@ -252,62 +216,59 @@ func (pThis *ServerStream) GetFailedFile() {
 	if len(pThis.MongoRecord) == 0 {
 		return
 	}
-	count := 0
 	for _, v := range pThis.MongoRecord {
 		//计算删除耗时
 		t1 := time.Now()
 		//脚本删除
 		res, err := exec_shell(v.Path)
 		if err != nil {
-			logger.Errorf("删除文件出错：[%v], Path: [%v]", err.Error(), v.Path)
-			time.Sleep(time.Second)
+			logger.Errorf("删除文件出错 On Mongo：[%v], Path: [%v]", err.Error(), v.Path)
+			time.Sleep(time.Second * 3)
 			trtcon := 0
 			for {
-				err1 := removeObject(v.Path)
+				_, err1 := exec_shell(v.Path)
 				if err1 != nil {
 					trtcon++
 					if trtcon >= 3 {
-						logger.Errorf("无法删除文件夹：[%v], Path: [%v]", err1.Error(), v.Path)
-						go Mongomon.GetMongoManager().WriteDeleteFailFileToMongo(pThis.IP, v.Path, v.Date, v.ID, v.MountPoint)
-						count++
+						logger.Errorf("无法删除文件夹 On Mongo：[%v], Path: [%v]", err1.Error(), v.Path)
+						pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: -2, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
 						break
 					}
-					time.Sleep(time.Second)
+					time.Sleep(time.Second * 3)
 					continue
 				} else {
 					durations := time.Since(t1).Seconds()
 					logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, v.MountPoint)
 					go pThis.goWriteInfoToRedis(durations, v.MountPoint)
-					logger.Infof("Delete File Success Again, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", v.MountPoint, res, v.ID)
+					logger.Infof("Delete File Success Again On Mongo, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", v.MountPoint, v.Path, v.ID)
 					pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
-					continue
+					data, err1, t := Mongomon.GetMongoManager().DeleteFailFileOnMongo(v.Path)
+					if err1 != nil {
+						logger.Errorf("Delete DeleteFailFile On Mongo Error: [%v]", err1)
+					} else {
+						logger.Infof("Delete DeleteFailFile On Mongo Success, Count: [%v], Table: [%v]", data.Removed, t)
+					}
+					break
 				}
 			}
-			pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: -2, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
-			continue
+		} else {
+			durations := time.Since(t1).Seconds()
+			logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, v.MountPoint)
+			go pThis.goWriteInfoToRedis(durations, v.MountPoint)
+			logger.Infof("Delete File Success On Mongo, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", v.MountPoint, res, v.ID)
+			pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
+			data, err1, t := Mongomon.GetMongoManager().DeleteFailFileOnMongo(v.Path)
+			if err1 != nil {
+				logger.Errorf("Delete DeleteFailFile On Mongo Error: [%v]", err1)
+				continue
+			} else {
+				logger.Infof("Delete DeleteFailFile On Mongo Success, Count: [%v], Table: [%v]", data.Removed, t)
+			}
 		}
-		durations := time.Since(t1).Seconds()
-		logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, v.MountPoint)
-		go pThis.goWriteInfoToRedis(durations, v.MountPoint)
-		logger.Infof("Delete File Success, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", v.MountPoint, res, v.ID)
-		pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
-	}
-	if count != 0 {
-		return
-	}
-	data, err1, t := Mongomon.GetMongoManager().DeleteFailFileOnMongo(pThis.IP)
-	if err1 != nil {
-		logger.Errorf("Delete DeleteFailFile On Mongo Error: [%v]", err1)
-		return
-	} else {
-		logger.Infof("Delete DeleteFailFile On Mongo Success, Count: [%v], Table: [%v]", data.Removed, t)
 	}
 }
 func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
-
-	//获取挂载点
-	go pThis.GetMountPointByShell()
 
 	//链接mq
 	pThis.StrMQURL = Config.GetConfig().PublicConfig.AMQPURL
@@ -329,7 +290,7 @@ func (pThis *ServerStream) InitServerStream() error {
 	}
 
 	//建立grpc监听
-	lis, err := net.Listen("tcp", "0.0.0.0:0")
+	lis, err := net.Listen("tcp", ":41010")
 	if err != nil {
 		pThis.m_plogger.Errorf("Start GRPC Listen Err: [%v]", err)
 		return err
@@ -337,7 +298,8 @@ func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger.Info("Start GRPC Listen Success")
 
 	//获取端口
-	port := lis.Addr().(*net.TCPAddr).Port
+	//port := lis.Addr().(*net.TCPAddr).Port
+	port := 41010
 
 	//写入redis
 	err = pThis.Initedis()

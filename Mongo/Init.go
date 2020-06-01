@@ -56,7 +56,7 @@ func (pThis *MongoManager) WriteNoExistFileToMongo(ip, path, date string) {
 }
 
 func (pThis *MongoManager) WriteDeleteFailFileToMongo(ip, path, date, id, mp string) {
-	baseFilter := []interface{}{bson.M{"IP": ip, "Path": path, "Date": date, "ChannelID": id, "MountPoint": mp, "CreateTime": strconv.Itoa(int(time.Now().Unix()))}}
+	baseFilter := []interface{}{bson.M{"IP": ip, "Path": path, "Date": date, "ChannelID": id, "MountPoint": mp, "CreateTime": time.Now().Format("2006-01-02")}}
 	err := pThis.Con.Insert("DeleteFailFile", baseFilter)
 	if err != nil {
 		pThis.Logger.Error(err)
@@ -71,8 +71,8 @@ func (pThis *MongoManager) GetDeleteFailFileFromMongo(tpl interface{}, ip string
 	return pThis.Con.FindAll("DeleteFailFile", filter, "+CreateTime", 0, 0, tpl)
 }
 
-func (pThis *MongoManager) DeleteFailFileOnMongo(ip string) (info *mgo.ChangeInfo, err error, table string) {
-	baseFilter := []interface{}{bson.M{"IP": ip}}
+func (pThis *MongoManager) DeleteFailFileOnMongo(path string) (info *mgo.ChangeInfo, err error, table string) {
+	baseFilter := []interface{}{bson.M{"Path": path}}
 	filter := bson.M{"$and": baseFilter}
 	t := "DeleteFailFile"
 	info, err = pThis.Con.DeleteAll(t, filter)
