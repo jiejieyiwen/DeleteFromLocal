@@ -8,6 +8,7 @@ import (
 	"github.com/robfig/cron"
 	"iPublic/EnvLoad"
 	"iPublic/LoggerModular"
+	"iPublic/RedisModular"
 	"net/http"
 	"os"
 	"strconv"
@@ -64,6 +65,13 @@ func main() {
 			return
 		}
 	}()
+
+	conf := EnvLoad.GetConf()
+	conf.HttpPort = 41011
+	conf.RedisAppName = "imccp-mediacore-media-DeleteFromLocal"
+	RedisModular.GetBusinessMap().SetBusinessRedis(EnvLoad.PublicName, Config.GetConfig().PublicConfig.RedisURL)
+	EnvLoad.GetServiceManager().SetStatus(EnvLoad.ServiceStatusOK)
+	go EnvLoad.GetServiceManager().RegSelf()
 
 	err = server.GetServerStream().InitServerStream()
 	if err != nil {

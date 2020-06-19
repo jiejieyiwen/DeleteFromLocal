@@ -38,7 +38,6 @@ func (pThis *ServerStream) GetMountPoint() {
 			//一次获取一行,_ 获取当前行是否被读完
 			output, _, err := outputBuf.ReadLine()
 			if err != nil {
-
 				// 判断是否到文件的结尾了否则出错
 				if err.Error() != "EOF" {
 					pThis.m_plogger.Errorf("EOF,Error: [%v]", err)

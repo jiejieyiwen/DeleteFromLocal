@@ -21,6 +21,7 @@ type Record struct {
 	Date       string `json:"RecordID" bson:"Date"`
 	MountPoint string `json:"RecordID" bson:"MountPoint"`
 	ID         string `json:"RecordID" bson:"ChannelID"`
+	LockStatus int    `json:"LockStatus" bson:"LockStatus"`
 }
 
 type ServerStream struct {
@@ -75,7 +76,7 @@ func (pThis *ServerStream) goDeleteFileByMountPoint(mp string) {
 			chxianliu <- 0
 			pThis.goDelete(req.StrMountPoint, req, chxianliu)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 50)
 	}
 }
 
@@ -95,12 +96,12 @@ func (pThis *ServerStream) goDelete(mp string, req *StreamReqData, chxianliu cha
 	if err != nil {
 		logger.Errorf("删除文件出错：[%v], Path: [%v], Time: [%v]", err.Error(), path, time.Since(t1).Seconds())
 		go Mongomon.GetMongoManager().WriteDeleteFailFileToMongo(pThis.IP, path, req.StrDate, req.StrChannelID, req.StrMountPoint)
-		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: -2, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime, NType: req.NType}
 	} else {
 		logger.Infof("Spend time:[%v] 秒, 协程：[%v]", time.Since(t1).Seconds(), mp)
 		go pThis.goWriteInfoToRedis(time.Since(t1).Seconds(), req.StrMountPoint)
 		logger.Infof("Delete File Success, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", req.StrMountPoint, res, req.StrChannelID)
-		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime}
+		pThis.chMQMsg <- StreamResData{StrChannelID: req.StrChannelID, NRespond: 1, StrRecordID: req.StrRecordID, StrDate: req.StrDate, StrMountPoint: req.StrMountPoint, NStartTime: req.NStartTime, NType: req.NType}
 	}
 	<-chxianliu
 	logger.Infof("线程处理任务结束：[%v]", mp)
@@ -231,7 +232,7 @@ func (pThis *ServerStream) GetFailedFile() {
 					trtcon++
 					if trtcon >= 3 {
 						logger.Errorf("无法删除文件夹 On Mongo：[%v], Path: [%v]", err1.Error(), v.Path)
-						pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: -2, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
+						pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: -2, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0, NType: int32(v.LockStatus)}
 						break
 					}
 					time.Sleep(time.Second * 3)
@@ -241,7 +242,7 @@ func (pThis *ServerStream) GetFailedFile() {
 					logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, v.MountPoint)
 					go pThis.goWriteInfoToRedis(durations, v.MountPoint)
 					logger.Infof("Delete File Success Again On Mongo, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", v.MountPoint, v.Path, v.ID)
-					pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
+					pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0, NType: int32(v.LockStatus)}
 					data, err1, t := Mongomon.GetMongoManager().DeleteFailFileOnMongo(v.Path)
 					if err1 != nil {
 						logger.Errorf("Delete DeleteFailFile On Mongo Error: [%v]", err1)
@@ -256,7 +257,7 @@ func (pThis *ServerStream) GetFailedFile() {
 			logger.Infof("Spend time:[%v] 秒, 协程：[%v]", durations, v.MountPoint)
 			go pThis.goWriteInfoToRedis(durations, v.MountPoint)
 			logger.Infof("Delete File Success On Mongo, mountpoint is: [%v], Path is: [%v], ChannelID is [%v]~~!", v.MountPoint, res, v.ID)
-			pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0}
+			pThis.chMQMsg <- StreamResData{StrChannelID: v.ID, NRespond: 1, StrRecordID: "", StrDate: v.Date, StrMountPoint: v.MountPoint, NStartTime: 0, NType: int32(v.LockStatus)}
 			data, err1, t := Mongomon.GetMongoManager().DeleteFailFileOnMongo(v.Path)
 			if err1 != nil {
 				logger.Errorf("Delete DeleteFailFile On Mongo Error: [%v]", err1)
@@ -267,6 +268,7 @@ func (pThis *ServerStream) GetFailedFile() {
 		}
 	}
 }
+
 func (pThis *ServerStream) InitServerStream() error {
 	pThis.m_plogger = LoggerModular.GetLogger().WithFields(logrus.Fields{})
 
